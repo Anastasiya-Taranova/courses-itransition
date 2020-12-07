@@ -130,3 +130,5 @@ dmypy.json
 .idea/
 .secrets.*
 Task3.mp4
+.DS_Store
+.script.js
