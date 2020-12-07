@@ -1,2 +1,2 @@
-# courses-itransition
+# Courses Itransition
 Tasks for courses Itransition
