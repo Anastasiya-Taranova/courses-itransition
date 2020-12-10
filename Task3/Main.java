@@ -1,140 +1,104 @@
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.UnsupportedEncodingException;
-import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Scanner;
-import java.util.Base64;
-
-
 
 public class Main {
 
-    public static void main(String[] args) throws  NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException{
-        Scanner scanner = new Scanner(System.in);
+	public static void main(String[] args) {
+		if (checkArg(args)) {
+			SecureRandom random = new SecureRandom();
+			byte key[] = new byte[16];
+			random.nextBytes(key);
+			String hmacKey = bytesToHex(key);
+			int computerMove = random.nextInt(args.length) + 1;
+			String hmac = getHmac(key, computerMove);
+			System.out.println("HMAC: " + hmac);
+			printMenu(args);
+			int playerMove = playerChoose(args);
+			if (playerMove != 0) {
+				System.out.println("Your move: " + args[playerMove - 1]);
+				System.out.println("Computer's move: " + args[computerMove - 1]);
+				printGameResult(playerMove, computerMove, args);
+				System.out.println("HMAC key: " + hmacKey);
+			}
+		}
+	}
 
-        if(args.length < 3) {
-            System.out.println("Enter the correct number of values (>=3)");
-            System.exit(1);
-        }
+	public static boolean checkArg(String[] args) {
+		HashSet<String> setArgs = new HashSet<>(Arrays.asList(args));
+		if (setArgs.size() < args.length) {
+			System.out.println("Duplicated arguments are not allowed");
+			return false;
+		} else if (args.length % 2 == 0) {
+			System.out.println(
+					"Enter the correct number of values (>=3)");
+			return false;
+		} else if (args.length < 3) {
+			System.out.println(
+					"Enter correct value of arguments");
+			return false;
+		} else {
+			return true;
+		}
+	}
 
-        int gameType = (int) Math.floor(args.length / 2);
+	public static String getHmac(byte[] key, int computerMove) {
+		byte b = (byte) computerMove;
+		MessageDigest messageDigest = null;
+		try {
+			messageDigest = MessageDigest.getInstance("SHA3-256");
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+		messageDigest.update(key);
+		messageDigest.update(b);
+		byte[] hmac = messageDigest.digest();
+		return bytesToHex(hmac);
+	}
 
-        int compChoice = (int) (Math.random()* (args.length - 1) + 1);
+	public static String bytesToHex(byte[] bytes) {
+		StringBuilder sb = new StringBuilder();
+		for (byte b : bytes) {
+			sb.append(String.format("%02x", b));
+		}
+		return sb.toString();
+	}
 
-        String secKey = secure(key(), args[compChoice - 1]);
-        System.out.println("HMAC");
-        System.out.println(secKey);
+	private static void printMenu(String[] args) {
+		System.out.println("Available moves:");
+		int n = 1;
+		for (String s : args) {
+			System.out.println(n + " - " + s);
+			n++;
+		}
+		System.out.println("0 - exit");
+	}
 
-        if(gameType == 1) {
-            availableMovesStandart();
-        } else if(gameType == 2) {
-            availableMovesExtended();
-        } else {
-            System.out.println("Enter correct value of arguments");
-        }
+	private static int playerChoose(String[] args) {
+		System.out.print("Enter your move: ");
+		Scanner sc = new Scanner(System.in);
+		int playerMove = sc.nextInt();
+		while (playerMove < 0 || playerMove > args.length) {
+			System.out.println("Wrong choice! Try again!");
+			System.out.print("Enter your move: ");
+			playerMove = sc.nextInt();
+		}
+		sc.close();
+		return playerMove;
+	}
 
-        int myChoice = scanner.nextInt();
-
-        while(myChoice > args.length || myChoice < 0) {
-
-            System.out.println("No such option exists, choose right option");
-
-            if(gameType == 2) {
-                availableMovesExtended();
-                myChoice = scanner.nextInt();
-
-            }   else if(gameType == 1) {
-                availableMovesStandart();
-                myChoice = scanner.nextInt();
-            }
-        }
-
-        if(myChoice != 0) {
-            System.out.println("Your move " + args[myChoice - 1]);
-            System.out.println("Computer move " + args[compChoice-1]);
-            myChoice -= 1;
-            compChoice -= 1;
-
-        } else {
-            System.exit(0);
-        }
-
-        int winNum = myChoice - compChoice;
-
-        if(gameType == 2) {
-            switch (winNum) {
-                case 2:
-                case 1:
-                case -3:
-                case -4:
-                    System.out.println("You win!");
-                    break;
-                case 0:
-                    System.out.println("It's a tie");
-                    break;
-                default:
-                    System.out.println("You lose!");
-            }
-        }
-
-        if(gameType != 2) {
-
-            switch (winNum) {
-                case 1:
-                case -2:
-                    System.out.println("you win");
-                    break;
-                case 0:
-                    System.out.println("It's a tie");
-                    break;
-                default:
-                    System.out.println("you lose");
-            }
-        }
-        System.out.println("HMAC key: " + secKey);
-    }
-
-
-    public static String key() throws  NoSuchAlgorithmException{
-            SecureRandom random = SecureRandom.getInstanceStrong();
-            byte[] values = new byte[32];
-            random.nextBytes(values);
-            StringBuilder sb = new StringBuilder();
-            for (byte b : values) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-    }
-
-
-    public static String secure(String key, String message) throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException {
-        Mac sha256 = Mac.getInstance("HmacSHA256");
-        SecretKeySpec s_key = new SecretKeySpec(key.getBytes("UTF-8"), "HmacSHA256");
-        sha256.init(s_key);
-        Base64.Encoder enc = Base64.getEncoder();
-        return enc.encodeToString(sha256.doFinal(message.getBytes("UTF-8")));
-    }
-
-    public static void availableMovesExtended() {
-        System.out.println("Available moves");
-        System.out.println("1: Rock");
-        System.out.println("2: Scissors");
-        System.out.println("3: Paper");
-        System.out.println("4: Lizard");
-        System.out.println("5: Spock");
-        System.out.println("0: Exit");
-        System.out.println("Enter your move");
-    }
-    public static void availableMovesStandart() {
-        System.out.println("Available moves");
-        System.out.println("1: Rock");
-        System.out.println("2: Scissors");
-        System.out.println("3: Paper");
-        System.out.println("0: exit");
-        System.out.println("Enter your move");
-    }
-
-
+	private static void printGameResult(int playerMove, int computerMove, String[] args) {
+		int result = playerMove - computerMove;
+		if (result == 0) {
+			System.out.println("It's a tie!");
+		} else if ((result >= 1 && result <= args.length / 2)
+				|| (result > -args.length && result <= -args.length / 2)) {
+			System.out.println("You win!");
+		} else {
+			System.out.println("You lose!");
+		}
+	}
 }
